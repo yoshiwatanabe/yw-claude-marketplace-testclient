@@ -1,6 +1,7 @@
 {
   "enabledPlugins": {
     "demo-skills@yw-claude-marketplace-demo": true,
-    "demo-commands@yw-claude-marketplace-demo": true
+    "demo-commands@yw-claude-marketplace-demo": true,
+    "yw-visualizer@yw-claude-marketplace": true
   }
 }
