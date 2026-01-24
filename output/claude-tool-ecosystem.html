@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Tool Ecosystem - Interactive Network Graph</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.css" rel="stylesheet" type="text/css" />
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --primary-dark: #764ba2;
+            --text-primary: #333;
+            --text-secondary: #555;
+            --text-light: white;
+            --bg-main: white;
+            --bg-secondary: #fafafa;
+            --bg-tertiary: #f5f5f5;
+            --bg-accent: #f0f4ff;
+            --border-color: #ddd;
+            --shadow-color: rgba(0, 0, 0, 0.3);
+            --font-primary: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            --color-client: #4CAF50;
+            --color-server: #2196F3;
+            --color-mcp: #FF9800;
+            --color-process: #9C27B0;
+            --color-core: #E91E63;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: var(--font-primary);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .header {
+            background: white;
+            padding: 20px;
+            box-shadow: 0 4px 12px var(--shadow-color);
+            z-index: 100;
+        }
+
+        .header h1 {
+            margin: 0 0 10px 0;
+            color: var(--primary-color);
+            font-size: 2em;
+        }
+
+        .header p {
+            margin: 0;
+            color: var(--text-secondary);
+            font-size: 0.95em;
+        }
+
+        .controls {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        label {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 0.95em;
+        }
+
+        select, button {
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-family: var(--font-primary);
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        select {
+            background: white;
+            color: var(--text-primary);
+            min-width: 150px;
+        }
+
+        select:hover {
+            border-color: var(--primary-color);
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+        }
+
+        button {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            font-weight: 600;
+        }
+
+        button:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px var(--shadow-color);
+        }
+
+        .content {
+            display: flex;
+            flex: 1;
+            gap: 0;
+            overflow: hidden;
+        }
+
+        #network {
+            flex: 1;
+            background: white;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .sidebar {
+            width: 300px;
+            background: white;
+            border-left: 1px solid var(--border-color);
+            padding: 20px;
+            overflow-y: auto;
+            box-shadow: -4px 0 12px var(--shadow-color);
+        }
+
+        .sidebar h3 {
+            margin: 0 0 15px 0;
+            color: var(--primary-color);
+            font-size: 1.2em;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+        }
+
+        .sidebar-section {
+            margin-bottom: 20px;
+        }
+
+        .sidebar-section h4 {
+            margin: 15px 0 10px 0;
+            color: var(--text-primary);
+            font-size: 0.95em;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+
+        .node-details {
+            background: var(--bg-accent);
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 15px;
+            font-size: 0.9em;
+        }
+
+        .node-details p {
+            margin: 0 0 8px 0;
+            color: var(--text-secondary);
+        }
+
+        .node-title {
+            font-weight: bold;
+            color: var(--text-primary);
+            font-size: 1.05em;
+            margin-bottom: 8px;
+        }
+
+        @media (max-width: 1024px) {
+            .sidebar {
+                width: 250px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                height: 300px;
+                border-left: none;
+                border-top: 1px solid var(--border-color);
+                box-shadow: 0 -4px 12px var(--shadow-color);
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            select, button {
+                width: 100%;
+            }
+        }
+
+        /* Theme-specific styles */
+        body.dark-theme {
+            --bg-main: #1e1e1e;
+            --bg-secondary: #2d2d2d;
+            --bg-tertiary: #3d3d3d;
+            --text-primary: #e0e0e0;
+            --text-secondary: #b0b0b0;
+            --border-color: #444;
+        }
+
+        body.dark-theme #network,
+        body.dark-theme .sidebar {
+            background: #2d2d2d;
+            color: var(--text-primary);
+        }
+
+        body.ocean-theme {
+            --primary-color: #006994;
+            --primary-dark: #004d6d;
+            --color-client: #4A90E2;
+            --color-server: #357ABD;
+            --color-mcp: #2E86AB;
+            --color-core: #1B5E75;
+        }
+
+        body.forest-theme {
+            --primary-color: #2E7D32;
+            --primary-dark: #1B5E20;
+            --color-client: #66BB6A;
+            --color-server: #4CAF50;
+            --color-mcp: #388E3C;
+            --color-core: #1B5E20;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Claude Tool Ecosystem</h1>
+            <p>Interactive network visualization of Claude's tool-use system, categories, and execution patterns</p>
+            <div class="controls">
+                <div class="control-group">
+                    <label for="themeSelect">🎨 Theme:</label>
+                    <select id="themeSelect" onchange="applyTheme(this.value)">
+                        <option value="default">Default</option>
+                        <option value="dark">Dark Mode</option>
+                        <option value="ocean">Ocean</option>
+                        <option value="forest">Forest</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <button onclick="resetNetwork()">🔄 Reset View</button>
+                    <button onclick="zoomIn()">🔍 Zoom In</button>
+                    <button onclick="zoomOut()">🔍 Zoom Out</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="content">
+            <div id="network"></div>
+            <div class="sidebar">
+                <h3>Legend & Info</h3>
+
+                <div class="sidebar-section">
+                    <h4>Tool Categories</h4>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #E91E63;"></div>
+                        <span><strong>Core</strong> - Claude decision engine</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #4CAF50;"></div>
+                        <span><strong>Client</strong> - User-executed tools</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #2196F3;"></div>
+                        <span><strong>Server</strong> - Anthropic-executed</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #FF9800;"></div>
+                        <span><strong>MCP</strong> - External tool servers</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #9C27B0;"></div>
+                        <span><strong>Process</strong> - Execution patterns</span>
+                    </div>
+                </div>
+
+                <div class="sidebar-section">
+                    <h4>How to Use</h4>
+                    <p style="font-size: 0.85em; color: var(--text-secondary); margin: 0;">
+                        • <strong>Drag</strong> nodes to reposition<br>
+                        • <strong>Click</strong> nodes for details<br>
+                        • <strong>Scroll</strong> to zoom<br>
+                        • <strong>Double-click</strong> background to reset
+                    </p>
+                </div>
+
+                <div id="nodeInfo" class="node-details" style="display: none;">
+                    <div class="node-title" id="nodeTitle"></div>
+                    <p id="nodeDesc"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Network data
+        const nodesData = [
+            { id: 'claude-core', label: 'Claude\nTool Use', type: 'core', title: 'Claude Tool Use System', description: 'Central decision engine that determines which tools to use and how to execute them' },
+            { id: 'client-tools', label: 'Client\nTools', type: 'category', title: 'Client Tools Category', description: 'Tools executed on the user\'s systems. Require user implementation and return results back to Claude.' },
+            { id: 'server-tools', label: 'Server\nTools', type: 'category', title: 'Server Tools Category', description: 'Tools executed on Anthropic\'s servers automatically. No user implementation needed.' },
+            { id: 'mcp-tools', label: 'MCP\nTools', type: 'mcp', title: 'MCP Tool Integration', description: 'Model Context Protocol tools from external servers. Must be converted to Claude format.' },
+
+            { id: 'custom-tools', label: 'Custom\nUser Tools', type: 'client', title: 'Custom User-Defined Tools', description: 'Tools you create and implement to extend Claude\'s capabilities with custom functionality.' },
+            { id: 'computer-use', label: 'Computer\nUse', type: 'client', title: 'Computer Use Tool', description: 'Anthropic-defined tool that allows Claude to interact with computer systems and UIs.' },
+            { id: 'text-editor', label: 'Text\nEditor', type: 'client', title: 'Text Editor Tool', description: 'Anthropic-defined tool for reading and writing files on the user\'s system.' },
+
+            { id: 'web-search', label: 'Web\nSearch', type: 'server', title: 'Web Search Tool', description: 'Search the web in real-time. Automatically executed on Anthropic\'s servers.' },
+            { id: 'web-fetch', label: 'Web\nFetch', type: 'server', title: 'Web Fetch Tool', description: 'Fetch and analyze content from web URLs. Returns processed HTML/markdown content.' },
+
+            { id: 'mcp-conversion', label: 'MCP Format\nConversion', type: 'process', title: 'MCP to Claude Conversion', description: 'Converts MCP tool definitions (inputSchema) to Claude format (input_schema).' },
+            { id: 'parallel-execution', label: 'Parallel\nExecution', type: 'process', title: 'Parallel Tool Execution', description: 'Multiple independent tools called simultaneously in a single response.' },
+            { id: 'sequential-chain', label: 'Sequential\nChaining', type: 'process', title: 'Sequential Tool Chaining', description: 'Output of one tool becomes the input for the next tool in sequence.' },
+            { id: 'tool-results', label: 'Tool Results\nProcessing', type: 'process', title: 'Tool Results Processing', description: 'Analyze and incorporate tool results to formulate Claude\'s final response.' }
+        ];
+
+        const edgesData = [
+            { from: 'claude-core', to: 'client-tools', label: 'decides to use', color: '#666' },
+            { from: 'claude-core', to: 'server-tools', label: 'decides to use', color: '#666' },
+            { from: 'claude-core', to: 'mcp-tools', label: 'decides to use', color: '#666' },
+
+            { from: 'client-tools', to: 'custom-tools', label: 'includes', color: '#999' },
+            { from: 'client-tools', to: 'computer-use', label: 'includes', color: '#999' },
+            { from: 'client-tools', to: 'text-editor', label: 'includes', color: '#999' },
+
+            { from: 'server-tools', to: 'web-search', label: 'includes', color: '#999' },
+            { from: 'server-tools', to: 'web-fetch', label: 'includes', color: '#999' },
+
+            { from: 'mcp-tools', to: 'mcp-conversion', label: 'requires', color: '#999' },
+            { from: 'mcp-conversion', to: 'claude-core', label: 'feeds into', color: '#FF9800' },
+
+            { from: 'client-tools', to: 'parallel-execution', label: 'can use', color: '#bbb' },
+            { from: 'server-tools', to: 'parallel-execution', label: 'can use', color: '#bbb' },
+            { from: 'client-tools', to: 'sequential-chain', label: 'can use', color: '#bbb' },
+            { from: 'server-tools', to: 'sequential-chain', label: 'can use', color: '#bbb' },
+
+            { from: 'parallel-execution', to: 'tool-results', label: 'produces', color: '#9C27B0' },
+            { from: 'sequential-chain', to: 'tool-results', label: 'produces', color: '#9C27B0' },
+            { from: 'tool-results', to: 'claude-core', label: 'feeds back to', color: '#E91E63' }
+        ];
+
+        // Process nodes with proper colors and sizes
+        const nodes = new vis.DataSet(nodesData.map(node => {
+            let color, size;
+            switch(node.type) {
+                case 'core':
+                    color = '#E91E63';
+                    size = 40;
+                    break;
+                case 'category':
+                    color = '#667eea';
+                    size = 35;
+                    break;
+                case 'client':
+                    color = '#4CAF50';
+                    size = 25;
+                    break;
+                case 'server':
+                    color = '#2196F3';
+                    size = 25;
+                    break;
+                case 'mcp':
+                    color = '#FF9800';
+                    size = 30;
+                    break;
+                case 'process':
+                    color = '#9C27B0';
+                    size = 22;
+                    break;
+                default:
+                    color = '#666';
+                    size = 25;
+            }
+            return {
+                ...node,
+                color: color,
+                size: size,
+                font: { size: 13, color: 'white', face: 'Segoe UI, sans-serif', bold: { color: 'white' } },
+                physics: true
+            };
+        }));
+
+        const edges = new vis.DataSet(edgesData.map(edge => ({
+            ...edge,
+            width: edge.from === 'claude-core' || edge.to === 'claude-core' ? 3 : 1.5,
+            smooth: { type: 'continuous' },
+            arrows: 'to'
+        })));
+
+        // Network options
+        const options = {
+            physics: {
+                enabled: true,
+                stabilization: {
+                    iterations: 200,
+                    fit: true
+                },
+                barnesHut: {
+                    gravitationalConstant: -30000,
+                    centralGravity: 0.3,
+                    springLength: 150,
+                    springConstant: 0.05
+                }
+            },
+            interaction: {
+                navigationButtons: true,
+                keyboard: true,
+                hover: true,
+                tooltipDelay: 200
+            }
+        };
+
+        // Initialize network
+        const container = document.getElementById('network');
+        const data = { nodes: nodes, edges: edges };
+        const network = new vis.Network(container, data, options);
+
+        // Node click event
+        network.on('click', function(params) {
+            if (params.nodes.length > 0) {
+                const nodeId = params.nodes[0];
+                const node = nodes.get(nodeId);
+                showNodeInfo(node);
+            } else {
+                document.getElementById('nodeInfo').style.display = 'none';
+            }
+        });
+
+        function showNodeInfo(node) {
+            document.getElementById('nodeTitle').textContent = node.title;
+            document.getElementById('nodeDesc').textContent = node.description;
+            document.getElementById('nodeInfo').style.display = 'block';
+        }
+
+        function resetNetwork() {
+            network.fit();
+            document.getElementById('nodeInfo').style.display = 'none';
+        }
+
+        function zoomIn() {
+            const currentScale = network.getScale();
+            network.setOptions({ physics: false });
+            network.moveTo({
+                scale: currentScale * 1.2,
+                animation: { duration: 300, easingFunction: 'easeInOutQuad' }
+            });
+        }
+
+        function zoomOut() {
+            const currentScale = network.getScale();
+            network.setOptions({ physics: false });
+            network.moveTo({
+                scale: currentScale * 0.8,
+                animation: { duration: 300, easingFunction: 'easeInOutQuad' }
+            });
+        }
+
+        // Theme system
+        const themes = {
+            default: {
+                primaryColor: '#667eea',
+                primaryDark: '#764ba2',
+                colorClient: '#4CAF50',
+                colorServer: '#2196F3',
+                colorMcp: '#FF9800',
+                colorProcess: '#9C27B0',
+                colorCore: '#E91E63'
+            },
+            dark: {
+                primaryColor: '#667eea',
+                primaryDark: '#764ba2',
+                colorClient: '#4CAF50',
+                colorServer: '#2196F3',
+                colorMcp: '#FF9800',
+                colorProcess: '#9C27B0',
+                colorCore: '#E91E63'
+            },
+            ocean: {
+                primaryColor: '#006994',
+                primaryDark: '#004d6d',
+                colorClient: '#4A90E2',
+                colorServer: '#357ABD',
+                colorMcp: '#2E86AB',
+                colorProcess: '#40B4E5',
+                colorCore: '#1B5E75'
+            },
+            forest: {
+                primaryColor: '#2E7D32',
+                primaryDark: '#1B5E20',
+                colorClient: '#66BB6A',
+                colorServer: '#4CAF50',
+                colorMcp: '#388E3C',
+                colorProcess: '#1B5E20',
+                colorCore: '#2E7D32'
+            }
+        };
+
+        function applyTheme(themeName) {
+            document.body.className = themeName === 'default' ? '' : `${themeName}-theme`;
+            localStorage.setItem('preferredTheme', themeName);
+        }
+
+        // Load saved theme
+        window.addEventListener('DOMContentLoaded', function() {
+            const savedTheme = localStorage.getItem('preferredTheme') || 'default';
+            document.getElementById('themeSelect').value = savedTheme;
+            applyTheme(savedTheme);
+        });
+    </script>
+</body>
+</html>

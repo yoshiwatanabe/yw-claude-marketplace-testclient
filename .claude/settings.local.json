@@ -2,6 +2,8 @@
   "enabledPlugins": {
     "demo-skills@yw-claude-marketplace-demo": true,
     "demo-commands@yw-claude-marketplace-demo": true,
-    "yw-visualizer@yw-claude-marketplace": true
+    "yw-visualizer@yw-claude-marketplace": true,
+    "bash-learner@yw-claude-marketplace": true,
+    "cmd-learner@yw-claude-marketplace": true
   }
 }
